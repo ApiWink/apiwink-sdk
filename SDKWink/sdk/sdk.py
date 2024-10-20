@@ -1,44 +1,43 @@
 import hashlib
 import requests
 
-class SDK:
-    def __init__(self, walletid, serviceid, reqs) -> None:
-        """
-        Initializes the SDK instance with wallet ID, service ID, and request count.
-        Generates an API key for the instance.
-        """
-        self.walletid = walletid
-        self.serviceid = serviceid
-        self.reqs = reqs
-        self.api_key = self.generate_api_key()
+# class SDK:
+#     def __init__(self, walletId, serviceId, requests) -> None:
+#         """
+#         Initializes the SDK instance with wallet ID, service ID, and request count.
+#         Generates an API key for the instance.
+#         """
+#         self.walletid = walletId
+#         self.serviceid = serviceId
+#         self.reqs = requests
+#         self.api_key = self.generate_api_key()
     
-    def generate_api_key(self) -> str:
-        """
-        Generates a unique API key using the wallet ID and service ID.
-        Returns the SHA-256 hashed key as a hexadecimal string.
-        """
-        key_string = f"{self.walletid}:{self.serviceid}"
-        return hashlib.sha256(key_string.encode()).hexdigest()
+#     def generate_api_key(self) -> str:
+#         """
+#         Generates a unique API key using the wallet ID and service ID.
+#         Returns the SHA-256 hashed key as a hexadecimal string.
+#         """
+#         key_string = f"{self.walletid}:{self.serviceid}"
+#         return hashlib.sha256(key_string.encode()).hexdigest()
 
-    def validate(self) -> bool:
-        """
-        Validates if the instance has remaining requests.
-        Decreases request count if valid.
-        Returns True if validation is successful, otherwise False.
-        """
-        if self.reqs > 0:
-            self.reqs -= 1
-            return True
-        return False
+#     def validate(self) -> bool:
+#         """
+#         Validates if the instance has remaining requests.
+#         Decreases request count if valid.
+#         Returns True if validation is successful, otherwise False.
+#         """
+#         if self.reqs > 0:
+#             self.reqs -= 1
+#             return True
+#         return False
     
-    def refill(self, num_reqs: int) -> bool:
-        """
-        Refills the request count for the instance with a specified number.
-        Returns True after refilling.
-        """
-        self.reqs = num_reqs
-        return True
-
+#     def refill(self, num_reqs: int) -> bool:
+#         """
+#         Refills the request count for the instance with a specified number.
+#         Returns True after refilling.
+#         """
+#         self.reqs = num_reqs
+#         return True
 
 class APIKeyManager:
     def __init__(self):
@@ -48,8 +47,19 @@ class APIKeyManager:
         """
         self.base_url = "https://apiwink-backend.onrender.com/"
         self.instances = {}
+        self.config = None
+    
+    def activate_config(self, config_key):
+        data = {
+            "config_key": config_key
+        }
+        response = self.post_to_url(self.base_url+"activate_config", data)
+        if not response:
+            return False
+        self.config = response.get("ack_key")
+        return True
 
-    def create_key(self, walletid: str, serviceid: str, reqs: int) -> str:
+    def create_key(self, walletid: str, serviceid: str, requests: int) -> str:
         """
         Creates a new SDK instance and generates an API key.
         Stores the SDK instance in the instances dictionary.
@@ -58,7 +68,7 @@ class APIKeyManager:
         data = {
             "walletid": walletid,
             "serviceid": serviceid,
-            "reqs": reqs,
+            "reqs": requests,
             "api_key": hashlib.sha256(f"{walletid}:{serviceid}".encode()).hexdigest()
         }
         response = self.post_to_url(self.base_url+"add_key", data)
@@ -66,11 +76,11 @@ class APIKeyManager:
             success, message = response.get("success"), response.get("message")
         except Exception as e:
             print("could not hit api")
-            return False
+            return None
         print(message)
         if not success:
-            return False
-        return True
+            return None
+        return data["api_key"]
 
     def validate_request(self, api_key: str) -> bool:
         """
@@ -91,7 +101,26 @@ class APIKeyManager:
             return False
         return True
     
-    def add_refills(self, api_key: str, num_requests: int) -> bool:
+    def fetch_details(self, api_key: str) -> bool:
+        """
+        Validates an API key by checking if the corresponding SDK instance has requests left.
+        Returns True if the request is valid, otherwise False.
+        """
+        data = {
+            "api_key": api_key
+        }
+        response = self.post_to_url(self.base_url+"fetch_data", data)
+        try:
+            success, message = response.get("success"), response.get("message")
+        except:
+            print("could not hit api")
+            return None
+        # print(message)
+        if not success:
+            return None
+        return message
+    
+    def add_refills(self, api_key: str, add_requests: int) -> bool:
         """
         Adds refills to the SDK instance associated with the given API key.
         Returns True if the refills were successfully added, otherwise False.
@@ -99,7 +128,7 @@ class APIKeyManager:
 
         data = {
             "api_key": api_key,
-            "add_reqs": num_requests
+            "add_reqs": add_requests
         }
         response = self.post_to_url(self.base_url+"update_requests", data)
         try:

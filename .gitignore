@@ -1,4 +1,8 @@
 build/*
 dist/*
 *.egg-info/*
-venv2/*
+venv/*
+venv/bin/*
+venv/include/*
+venv/lib/python3.9/site-packages/*
+venv/lib/python3.9/site-packages/pkginfo/sdist.py
