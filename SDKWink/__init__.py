@@ -1,3 +1,3 @@
-from .sdk import SDK, APIKeyManager
+from .sdk import APIWink
 
 __all__ = ['APIWink']
